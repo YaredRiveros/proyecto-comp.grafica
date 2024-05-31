@@ -64,6 +64,49 @@ def perspective_transform(player, team, original, new):
 
     cv2.imshow('Top View', dst)
 
+# def draw_inclined_line(image, x, y, color, thickness, angle_degrees):
+#     """Draw an inclined line on the image starting from (x, y) with a specified angle."""
+#     height, width = image.shape[:2]
+
+#     # Convert angle from degrees to radians
+#     angle_radians = np.deg2rad(angle_degrees)
+
+#     # Calculate the end points of the line using the angle
+#     length = max(height, width)
+#     x_end = int(x + length * np.cos(angle_radians))
+#     y_end = int(y - length * np.sin(angle_radians))
+
+#     # Draw the line
+#     cv2.line(image, (x, y), (x_end, y_end), color, thickness)
+
+
+def is_offside(player_position, team1_positions, team2_positions, ball_position):
+    # Check if player is in the opposing team
+    if player_position in team1_positions:
+        opposing_team_positions = team2_positions
+    elif player_position in team2_positions:
+        opposing_team_positions = team1_positions
+    else:
+        return False
+
+
+    # Check if player is closer to the goal line than the last two opposing players
+    if len(opposing_team_positions) >= 2:
+        opposing_team_positions.sort(key=lambda pos: pos[0])
+        last_player = opposing_team_positions[0]
+        # second_last_player = opposing_team_positions[-2]
+
+        # if player_position[0] < last_player[0] and player_position[0] < second_last_player[0]:
+        if last_player[0] < ball_position[0]:
+            if player_position[0] < last_player[0]:
+                return True
+        else:
+            if player_position[0] < ball_position[0]:
+                return True
+
+    return False
+
+
 # Loop through each frame
 while True:
     # Video frame = frame
@@ -86,6 +129,10 @@ while True:
     colors.clear()
     new_points.clear()
     new_points_group1.clear()
+
+    team1_positions = []
+    team2_positions = []
+    ball_position = None
 
     cont = 0
     
@@ -143,12 +190,14 @@ while True:
                     """
                     if(team == "group1"):
                         cv2.putText(frame, "Team 1", (x, y-5), font, 1, team1_bgr, 3, cv2.LINE_AA)
+                        team1_positions.append((x, y-5))
                         
                         # Draw segmentation with the color of the dominant color of the player
                         cv2.polylines(frame, [seg], True, team1_bgr, 3)
                         cv2.circle(frame,(minX, maxY),5,team1_bgr,-1)
                     if(team == "group2"):
                         cv2.putText(frame, "Team 2", (x, y-5), font, 1, team2_bgr, 3, cv2.LINE_AA)
+                        team2_positions.append((x, y-5))
 
                         # Draw segmentation with the color of the dominant color of the player
                         cv2.polylines(frame, [seg], True, team2_bgr, 3)
@@ -164,9 +213,13 @@ while True:
                     # 2. Classify color as ball (usar x,y permite dibujar en la posición correcta. NO USAR MINX, MINY)
                     team = "ball"
                     cv2.putText(frame, "Ball", (x, y-5), font, 1, (0, 255, 255), 3, cv2.LINE_AA)
+                    ball_position = (x, y-5)
 
-                    # Dibujo una rectangulo como linea
-                    cv2.line(frame, (x, 0) , (x, 1690), (0, 0, 255), 2)
+                    # cv2.line(frame, (x, 0) , (x, 1690), (0, 0, 255), 2)
+
+                    # # Dibujo una línea inclinada
+                    # angle = 81 
+                    # draw_inclined_line(frame, x, y, (0, 0, 255), 2, angle)
                     
                     # Draw segmentation with the color of the dominant color of the ball
                     cv2.polylines(frame, [seg], True, (0, 255, 255), 3)
@@ -174,6 +227,13 @@ while True:
 
         # Perspective transform for each player
         perspective_transform([x, y-5], team, og_perspective_coords, new_perspective_coords)
+
+    if ball_position is not None: # solo cuando la pelota se detecta porque sino da error en l
+        for player_position in team2_positions:
+            if is_offside(player_position, team1_positions, team2_positions, ball_position):
+                cv2.putText(frame, "Offside", (player_position[0], player_position[1] - 5), font, 1, (0, 0, 255), 3, cv2.LINE_AA)
+            else:
+                cv2.putText(frame, "Not Offside", (player_position[0], player_position[1] - 5), font, 1, (0, 255, 0), 3, cv2.LINE_AA)
     
 
     """
