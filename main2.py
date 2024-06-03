@@ -1,3 +1,5 @@
+# COLOCAR TRESHHOLD=500 en functions.py
+
 import cv2
 from operator import itemgetter
 import numpy as np
@@ -5,8 +7,8 @@ from yolo_segmentation import YOLOSegmentation
 
 from functions import get_average_color, classify_bgr_color
 
-cap = cv2.VideoCapture("vid.mov")
-# cap = cv2.VideoCapture("demo.mp4")
+# cap = cv2.VideoCapture("vid.mov")
+cap = cv2.VideoCapture("demo.mp4")
 
 ys = YOLOSegmentation("yolov8m-seg.pt")
 
@@ -19,10 +21,10 @@ colors = []
 player_coords = []
 
 # INPUT TEAM COLORS (BGR)
-# team1_bgr = [0,0,255]
-# team2_bgr = [255,0,0]
-team1_bgr = [143, 97, 164]
-team2_bgr = [154, 115, 112]
+team1_bgr = [0,0,255]
+team2_bgr = [255,0,0]
+# team1_bgr = [143, 97, 164]
+# team2_bgr = [154, 115, 112]
 
 
 def map_point(p, H):
@@ -180,7 +182,7 @@ while True:
                     
                     # 2. Classify color as team1 or team2
                     team = classify_bgr_color(dominant_color, team1_bgr, team2_bgr)
-                    # print("team:",team)
+                    print("team:",team)
 
 
                     """
@@ -226,19 +228,19 @@ while True:
         # Perspective transform for each player
         perspective_transform([x, y-5], team, og_perspective_coords, new_perspective_coords)
 
-    if ball_position is not None: # solo cuando la pelota se detecta porque sino da error en l
-        for player_position in team2_positions:
-            if is_offside(player_position, team1_positions, team2_positions, ball_position):
-                cv2.putText(frame, "Offside", (player_position[0], player_position[1] - 5), font, 1, (0, 0, 255), 3, cv2.LINE_AA)
-            else:
-                cv2.putText(frame, "Not Offside", (player_position[0], player_position[1] - 5), font, 1, (0, 255, 0), 3, cv2.LINE_AA)
-
     # if ball_position is not None: # solo cuando la pelota se detecta porque sino da error en l
-    #     for player_position in team1_positions:
+    #     for player_position in team2_positions:
     #         if is_offside(player_position, team1_positions, team2_positions, ball_position):
-    #             cv2.putText(frame, "Offside", (player_position[0], player_position[1]-12), font, 1, (0, 0, 255), 1, cv2.LINE_AA)
+    #             cv2.putText(frame, "Offside", (player_position[0], player_position[1] - 5), font, 1, (0, 0, 255), 3, cv2.LINE_AA)
     #         else:
-    #             cv2.putText(frame, "Not Offside", (player_position[0], player_position[1]-12), font, 1, (0, 255, 0), 1, cv2.LINE_AA)
+    #             cv2.putText(frame, "Not Offside", (player_position[0], player_position[1] - 5), font, 1, (0, 255, 0), 3, cv2.LINE_AA)
+
+    if ball_position is not None: # solo cuando la pelota se detecta porque sino da error en l
+        for player_position in team1_positions:
+            if is_offside(player_position, team1_positions, team2_positions, ball_position):
+                cv2.putText(frame, "Offside", (player_position[0], player_position[1]-12), font, 1, (0, 0, 255), 1, cv2.LINE_AA)
+            else:
+                cv2.putText(frame, "Not Offside", (player_position[0], player_position[1]-12), font, 1, (0, 255, 0), 1, cv2.LINE_AA)
     
 
     """

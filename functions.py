@@ -13,7 +13,7 @@ def assign_custom_label(color, team1_bgr, team2_bgr):
 
     # Define the threshold distance for outliers
     threshold_distance = 120.0  # Adjust this value as needed based on the color space and your application
-
+    # threshold_distance = 500.0
     # Calculate the distance to team1 and team2 colors
     team1_distance = euclidean_distance(color, team1_bgr)
     team2_distance = euclidean_distance(color, team2_bgr)
