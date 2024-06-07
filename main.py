@@ -5,8 +5,8 @@ from yolo_segmentation import YOLOSegmentation
 
 from functions import get_average_color, classify_bgr_color
 
-cap = cv2.VideoCapture("vid.mov")
-# cap = cv2.VideoCapture("demo.mp4")
+# cap = cv2.VideoCapture("vid.mov")
+cap = cv2.VideoCapture("demoRom.mp4")
 
 ys = YOLOSegmentation("yolov8m-seg.pt")
 
@@ -19,22 +19,38 @@ colors = []
 player_coords = []
 
 # INPUT TEAM COLORS (BGR)
-# team1_bgr = [0,0,255]
-# team2_bgr = [255,0,0]
-team1_bgr = [143, 97, 164]
-team2_bgr = [154, 115, 112]
+team1_bgr = [255, 255, 255]
+team2_bgr = [0, 0, 0]
 
+# Lists to store the coordinates
+og_perspective_coords = []
+new_perspective_coords = []
+
+# Callback function to get coordinates from the original image
+def click_event_og(event, x, y, flags, params):
+    global og_perspective_coords
+    if event == cv2.EVENT_LBUTTONDOWN:
+        if len(og_perspective_coords) < 4:
+            og_perspective_coords.append((x, y))
+            print(f"Original Image Coordinates: {og_perspective_coords}")
+            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+            cv2.imshow("First Frame", frame)
+
+# Callback function to get coordinates from the top-view image
+def click_event_new(event, x, y, flags, params):
+    global new_perspective_coords
+    if event == cv2.EVENT_LBUTTONDOWN:
+        if len(new_perspective_coords) < 4:
+            new_perspective_coords.append((x, y))
+            print(f"Top View Image Coordinates: {new_perspective_coords}")
+            cv2.circle(dst, (x, y), 5, (0, 255, 0), -1)
+            cv2.imshow("Top View", dst)
 
 def map_point(p, H):
     """Map a point using the homography matrix H."""
     point = np.array([p[0], p[1], 1.0])
     mapped_point = np.dot(H, point)
     return mapped_point[0] / mapped_point[2], mapped_point[1] / mapped_point[2]
-
-# INPUT PERSPECTIVE COORDINATES ON ORIGINAL IMAGE (TL, BL, TR, BR)
-og_perspective_coords = [(782, 349), (1585, 343), (96, 798), (1559, 801)]
-# INPUT PERSPECTIVE COORDINATES ON NEW IMAGE (TL, BL, TR, BR)
-new_perspective_coords = [(67, 31), (305, 32), (69, 652), (306, 652)]
 
 ball_coords = [0,0]
 new_points_group1 = []
@@ -44,54 +60,37 @@ def perspective_transform(player, team, original, new):
     src_points_np = np.array(original, dtype='float32')
     dst_points_np = np.array(new, dtype='float32')
 
-    # Calcular la matriz de homografía
-    H, status = cv2.findHomography(src_points_np, dst_points_np)
+    # Calculate the homography matrix
+    H, status = cv2.findHomography(src_points_np, dst_points_np, cv2.RANSAC, 5.0)
 
-    new_pp = map_point(player, H)
+    # Transform the player's point using the homography matrix
+    player_np = np.array([player], dtype='float32').reshape(-1, 1, 2)
+    new_pp = cv2.perspectiveTransform(player_np, H).reshape(-1, 2)[0]
 
     new_p = (int(new_pp[0]), int(new_pp[1]))
 
     # Place transformed point for each player on dst
-    if(team == "group1"):
-        cv2.circle(dst,new_p,10,team1_bgr,-1)
+    if team == "group1":
+        cv2.circle(dst, new_p, 10, team1_bgr, -1)
         new_points.append(new_p)
         new_points_group1.append(new_p)
-    if(team == "group2"):
-        cv2.circle(dst,new_p,10,team2_bgr,-1)
+    elif team == "group2":
+        cv2.circle(dst, new_p, 10, team2_bgr, -1)
         new_points.append(new_p)
-
-    if(team == "ball"):
-        cv2.circle(dst,new_p,10,(0, 255, 255),-1)
+    elif team == "ball":
+        cv2.circle(dst, new_p, 10, (0, 255, 255), -1)
         ball_coords[0] = new_p[0]
         ball_coords[1] = new_p[1]
 
     cv2.imshow('Top View', dst)
 
-# def draw_inclined_line(image, x, y, color, thickness, angle_degrees):
-#     """Draw an inclined line on the image starting from (x, y) with a specified angle."""
-#     height, width = image.shape[:2]
-
-#     # Convert angle from degrees to radians
-#     angle_radians = np.deg2rad(angle_degrees)
-
-#     # Calculate the end points of the line using the angle
-#     length = max(height, width)
-#     x_end = int(x + length * np.cos(angle_radians))
-#     y_end = int(y - length * np.sin(angle_radians))
-
-#     # Draw the line
-#     cv2.line(image, (x, y), (x_end, y_end), color, thickness)
-
-
 def is_offside(player_position, team1_positions, team2_positions, ball_position):
-
     if player_position in team1_positions:
         opposing_team_positions = team2_positions
     elif player_position in team2_positions:
         opposing_team_positions = team1_positions
     else:
         return False
-
 
     # verifico si hay jugadores del equipo contrario más cerca de la portería que el jugador actual
     if len(opposing_team_positions) >= 1:
@@ -103,6 +102,26 @@ def is_offside(player_position, team1_positions, team2_positions, ball_position)
 
     return False
 
+# Read the first frame to get perspective coordinates
+ret, frame = cap.read()
+if not ret:
+    print("Error: Could not read the first frame.")
+    exit()
+
+dst = cv2.imread("dst.png")
+
+cv2.imshow("First Frame", frame)
+cv2.imshow("Top View", dst)
+cv2.setMouseCallback("First Frame", click_event_og)
+cv2.setMouseCallback("Top View", click_event_new)
+
+print("Please click 4 points on the original frame and the corresponding 4 points on the top-view image.")
+
+# Wait until 4 points are selected for both original and new perspective coordinates
+while len(og_perspective_coords) < 4 or len(new_perspective_coords) < 4:
+    cv2.waitKey(1)
+
+cv2.destroyAllWindows()
 
 # Loop through each frame
 while True:
@@ -164,12 +183,20 @@ while True:
                     # Shift color detection box based on player orientation
                     if(distRight > distLeft):
                         # Shift left
-                        newX = int(newX - ((distRight)/distLeft)/1.5)
-                        newX2 = int(newX2 - ((distRight)/distLeft)/1.5)
+                        if(distLeft!=0):
+                            newX = int(newX - ((distRight)/distLeft)/1.5)
+                            newX2 = int(newX2 - ((distRight)/distLeft)/1.5)
+                        else: 
+                            newX = int(newX - 1)
+                            newX2 = int(newX2 - 1)
                     else:
-                        # Shift right
-                        newX = int(newX + ((distLeft)/distRight)*1.5)
-                        newX2 = int(newX2 + ((distLeft)/distRight)*1.5)
+                        if(distRight!=0):
+                            # Shift right
+                            newX = int(newX + ((distLeft)/distRight)*1.5)
+                            newX2 = int(newX2 + ((distLeft)/distRight)*1.5)
+                        else:
+                            newX = int(newX + 1)
+                            newX2 = int(newX2 + 1)
 
                     # Define smaller rectangle around player to use for color detection
                     roi = frame2[newY:newY2, newX:newX2]
@@ -193,7 +220,7 @@ while True:
                         # Draw segmentation with the color of the dominant color of the player
                         cv2.polylines(frame, [seg], True, team1_bgr, 3)
                         cv2.circle(frame,(minX, maxY),5,team1_bgr,-1)
-                    if(team == "group2"):
+                    elif(team == "group2"):
                         cv2.putText(frame, "Team 2", (x, y-5), font, 1, team2_bgr, 3, cv2.LINE_AA)
                         team2_positions.append((x, y-5))
 
@@ -224,21 +251,15 @@ while True:
                     cv2.circle(frame,(minX, maxY),5,(0, 255, 255),-1)
 
         # Perspective transform for each player
-        perspective_transform([x, y-5], team, og_perspective_coords, new_perspective_coords)
+        if len(og_perspective_coords) == 4 and len(new_perspective_coords) == 4:
+            perspective_transform([x, y-5], team, og_perspective_coords, new_perspective_coords)
 
     if ball_position is not None: # solo cuando la pelota se detecta porque sino da error en l
-        for player_position in team2_positions:
+        for player_position in team1_positions:
             if is_offside(player_position, team1_positions, team2_positions, ball_position):
-                cv2.putText(frame, "Offside", (player_position[0], player_position[1] - 5), font, 1, (0, 0, 255), 3, cv2.LINE_AA)
+                cv2.putText(frame, "Offside", (player_position[0], player_position[1]-12), font, 1, (0, 0, 255), 1, cv2.LINE_AA)
             else:
-                cv2.putText(frame, "Not Offside", (player_position[0], player_position[1] - 5), font, 1, (0, 255, 0), 3, cv2.LINE_AA)
-
-    # if ball_position is not None: # solo cuando la pelota se detecta porque sino da error en l
-    #     for player_position in team1_positions:
-    #         if is_offside(player_position, team1_positions, team2_positions, ball_position):
-    #             cv2.putText(frame, "Offside", (player_position[0], player_position[1]-12), font, 1, (0, 0, 255), 1, cv2.LINE_AA)
-    #         else:
-    #             cv2.putText(frame, "Not Offside", (player_position[0], player_position[1]-12), font, 1, (0, 255, 0), 1, cv2.LINE_AA)
+                cv2.putText(frame, "Not Offside", (player_position[0], player_position[1]-12), font, 1, (0, 255, 0), 1, cv2.LINE_AA)
     
 
     """
@@ -246,10 +267,13 @@ while True:
     """
    
     if new_points:
+        print("team1_positions: ", team1_positions)
+        print("team2_positions: ", team2_positions)
         # max_point_X, max_point_Y = min(new_points, key=itemgetter(0))[0], min(new_points, key=itemgetter(0))[1]
-        max_point_X, max_point_Y = min(new_points_group1, key=itemgetter(0))[0], min(new_points_group1, key=itemgetter(0))[1]
-        cv2.circle(dst, (max_point_X, max_point_Y), 10, (0,255,255), 2)
-        cv2.line(dst, (max_point_X, 0), (max_point_X, 1035), (0,255,255), 2)
+        if(new_points_group1): # si hay jugadores del equipo 1 detectados halla el que esté más cerca al arco contrario
+            max_point_X, max_point_Y = min(new_points_group1, key=itemgetter(0))[0], min(new_points_group1, key=itemgetter(0))[1]
+            cv2.circle(dst, (max_point_X, max_point_Y), 10, (0,255,255), 2)
+            cv2.line(dst, (max_point_X, 0), (max_point_X, 1035), (0,255,255), 2)
 
     # Dibujar línea vertical para la pelota
     cv2.line(dst, (ball_coords[0], 0), (ball_coords[0], 1035), (0,0,255), 2)
