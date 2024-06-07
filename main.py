@@ -26,6 +26,9 @@ team2_bgr = [0, 0, 0]
 og_perspective_coords = []
 new_perspective_coords = []
 
+# mapa que relacona coordenadas de la imagen original con las de la imagen top view
+new_og_map = {}
+
 # Callback function to get coordinates from the original image
 def click_event_og(event, x, y, flags, params):
     global og_perspective_coords
@@ -52,8 +55,9 @@ def map_point(p, H):
     mapped_point = np.dot(H, point)
     return mapped_point[0] / mapped_point[2], mapped_point[1] / mapped_point[2]
 
-ball_coords = [0,0]
+new_ball_coords = [0, 0]
 new_points_group1 = []
+new_points_group2 = []
 
 # Perspective transform function (pass in a point) (returns a point)
 def perspective_transform(player, team, original, new):
@@ -69,6 +73,9 @@ def perspective_transform(player, team, original, new):
 
     new_p = (int(new_pp[0]), int(new_pp[1]))
 
+    # guardar el mapeo de las coordenadas de la imagen original con las de la imagen top view
+    new_og_map[new_p] = player
+
     # Place transformed point for each player on dst
     if team == "group1":
         cv2.circle(dst, new_p, 10, team1_bgr, -1)
@@ -77,10 +84,11 @@ def perspective_transform(player, team, original, new):
     elif team == "group2":
         cv2.circle(dst, new_p, 10, team2_bgr, -1)
         new_points.append(new_p)
+        new_points_group2.append(new_p)
     elif team == "ball":
         cv2.circle(dst, new_p, 10, (0, 255, 255), -1)
-        ball_coords[0] = new_p[0]
-        ball_coords[1] = new_p[1]
+        new_ball_coords[0] = new_p[0]
+        new_ball_coords[1] = new_p[1]
 
     cv2.imshow('Top View', dst)
 
@@ -141,6 +149,7 @@ while True:
     bboxes, classes, segmentations, scores = ys.detect(frame)
     # print("classes: ", classes)
 
+    new_og_map.clear()
     player_coords.clear()
     colors.clear()
     new_points.clear()
@@ -255,11 +264,11 @@ while True:
             perspective_transform([x, y-5], team, og_perspective_coords, new_perspective_coords)
 
     if ball_position is not None: # solo cuando la pelota se detecta porque sino da error en l
-        for player_position in team1_positions:
-            if is_offside(player_position, team1_positions, team2_positions, ball_position):
-                cv2.putText(frame, "Offside", (player_position[0], player_position[1]-12), font, 1, (0, 0, 255), 1, cv2.LINE_AA)
+        for player_position in new_points_group1:
+            if is_offside(player_position, new_points_group1, new_points_group2, new_ball_coords):
+                cv2.putText(frame, "Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-12), font, 1, (0, 0, 255), 1, cv2.LINE_AA)
             else:
-                cv2.putText(frame, "Not Offside", (player_position[0], player_position[1]-12), font, 1, (0, 255, 0), 1, cv2.LINE_AA)
+                cv2.putText(frame, "Not Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-12), font, 1, (0, 255, 0), 1, cv2.LINE_AA)
     
 
     """
@@ -267,8 +276,9 @@ while True:
     """
    
     if new_points:
-        print("team1_positions: ", team1_positions)
-        print("team2_positions: ", team2_positions)
+        print("new_points: ", new_points)
+        print("new_points_group1: ", new_points_group1)
+        print("new_points_group2: ", new_points_group2)
         # max_point_X, max_point_Y = min(new_points, key=itemgetter(0))[0], min(new_points, key=itemgetter(0))[1]
         if(new_points_group1): # si hay jugadores del equipo 1 detectados halla el que esté más cerca al arco contrario
             max_point_X, max_point_Y = min(new_points_group1, key=itemgetter(0))[0], min(new_points_group1, key=itemgetter(0))[1]
@@ -276,7 +286,7 @@ while True:
             cv2.line(dst, (max_point_X, 0), (max_point_X, 1035), (0,255,255), 2)
 
     # Dibujar línea vertical para la pelota
-    cv2.line(dst, (ball_coords[0], 0), (ball_coords[0], 1035), (0,0,255), 2)
+    cv2.line(dst, (new_ball_coords[0], 0), (new_ball_coords[0], 1035), (0,0,255), 2)
 
     # Show images
     cv2.imshow("Img", frame)
