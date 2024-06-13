@@ -173,6 +173,11 @@ while len(og_perspective_coords) < 4 or len(new_perspective_coords) < 4:
 
 display_goal_direction_selection()
 
+# Configurar el codec y crear el objeto VideoWriter para guardar el video procesado
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec para guardar el video en formato mp4
+out_3d = cv2.VideoWriter('output_3d.mp4', fourcc, 20.0, (frame.shape[1], frame.shape[0]))  # 20.0 es el frame rate
+out_2d = cv2.VideoWriter('output_2d.mp4', fourcc, 20.0, (dst.shape[1], dst.shape[0]))  # 20.0 es el frame rate
+
 # recorre todos los frames del video
 while True:
     ret, frame = cap.read()
@@ -283,8 +288,12 @@ while True:
     cv2.imshow("Top View", dst)
     t = 5
     key = cv2.waitKey(t) & 0xFF
+    out_3d.write(frame)  # Guardar el frame procesado en el archivo de salida
+    out_2d.write(dst)
     if key == 27:
-            break
+        break
 
 cap.release()
+out_3d.release()
+out_2d.release()
 cv2.destroyAllWindows()
