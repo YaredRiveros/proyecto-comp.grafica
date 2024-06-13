@@ -259,9 +259,9 @@ while True:
     if ball_position is not None:
         for player_position in new_points_group1:
             if is_offside(player_position, new_points_group1, new_points_group2, new_ball_coords, goal_direction):
-                cv2.putText(frame, "Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-12), font, 1, (0, 0, 255), 1, cv2.LINE_AA)
+                cv2.putText(frame, "Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-32), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
             else:
-                cv2.putText(frame, "Not Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-12), font, 1, (0, 255, 0), 1, cv2.LINE_AA)
+                cv2.putText(frame, "Not Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-32), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
     # Trazar una recta amarilla al atacante más cercano al arco, otra recta azul al defensa más cercano a al arco y una recta roja a la pelota
     if new_points:
