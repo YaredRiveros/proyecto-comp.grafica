@@ -4,7 +4,7 @@ import numpy as np
 from yolo_segmentation import YOLOSegmentation
 from functions import get_average_color, classify_bgr_color
 
-cap = cv2.VideoCapture("demoRom.mp4")
+cap = cv2.VideoCapture("demoRom_cortado.mp4")
 ys = YOLOSegmentation("yolov8m-seg.pt")
 
 font = cv2.FONT_HERSHEY_SIMPLEX
@@ -155,7 +155,7 @@ while not selected_team1 or not selected_team2:
 
 cv2.destroyWindow("Color Selection")
 
-dst = cv2.imread("dst.png")
+dst = cv2.imread("dst3.png")
 
 cv2.namedWindow("First Frame")
 cv2.namedWindow("Top View")
@@ -166,17 +166,17 @@ cv2.imshow("Top View", dst)
 cv2.setMouseCallback("First Frame", click_event_og)
 cv2.setMouseCallback("Top View", click_event_new)
 
-print("Please click 4 points on the original frame and the corresponding 4 points on the top-view image.")
+print("Por favor haga clic en los vértices del cuadrilátero , de tal forma que un lado sea la línea del arco. Ambos deben coincidir lo más posible en ambas imágenes")
 
 while len(og_perspective_coords) < 4 or len(new_perspective_coords) < 4:
     cv2.waitKey(1)
 
 display_goal_direction_selection()
 
-
+# recorre todos los frames del video
 while True:
     ret, frame = cap.read()
-    dst = cv2.imread("dst.png")
+    dst = cv2.imread("dst3.png")
     if not ret:
         break
     frame2 = np.array(frame)
@@ -190,6 +190,8 @@ while True:
     team1_positions = []
     team2_positions = []
     ball_position = None
+
+    # recorre todos los objetos hallados con YOLO
     for index, (bbox, class_id, seg, score) in enumerate(zip(bboxes, classes, segmentations, scores)):
         if class_id == 0 or class_id == 32:
             (x, y, x2, y2) = bbox
@@ -203,6 +205,8 @@ while True:
                 newY = int((y2 - y)/5 + y)
                 newX2 = int(2*(x2 - x)/3 + x)
                 newY2 = int(2*(y2 - y)/5 + y)
+
+                # Poner etiquetas a los objetos ("team1","team2" o "ball")
                 if class_id == 0:
                     if distRight > distLeft:
                         if distLeft != 0:
@@ -241,19 +245,39 @@ while True:
                     ball_position = (x, y-5)
                     cv2.polylines(frame, [seg], True, (0, 255, 255), 3)
                     cv2.circle(frame, (minX, maxY), 5, (0, 255, 255), -1)
+            
+            # Hallar posición del jugador en campo de fútbol 2D
             if len(og_perspective_coords) == 4 and len(new_perspective_coords) == 4:
                 perspective_transform([x, y-5], team, og_perspective_coords, new_perspective_coords)
+
+    # Detectar si el jugador está en offside usando coordenadas 2D
     if ball_position is not None:
         for player_position in new_points_group1:
             if is_offside(player_position, new_points_group1, new_points_group2, new_ball_coords, goal_direction):
                 cv2.putText(frame, "Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-12), font, 1, (0, 0, 255), 1, cv2.LINE_AA)
             else:
                 cv2.putText(frame, "Not Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-12), font, 1, (0, 255, 0), 1, cv2.LINE_AA)
+
+    # Trazar una recta amarilla al atacante más cercano al arco, otra recta azul al defensa más cercano a al arco y una recta roja a la pelota
     if new_points:
-        if new_points_group1:
-            max_point_X, max_point_Y = min(new_points_group1, key=itemgetter(0))[0], min(new_points_group1, key=itemgetter(0))[1]
-            cv2.circle(dst, (max_point_X, max_point_Y), 10, (0, 255, 255), 2)
-            cv2.line(dst, (max_point_X, 0), (max_point_X, 1035), (0, 255, 255), 2)
+        if goal_direction == 'left':
+            if new_points_group1:
+                max_point_X, max_point_Y = min(new_points_group1, key=itemgetter(0))[0], min(new_points_group1, key=itemgetter(0))[1]
+                cv2.circle(dst, (max_point_X, max_point_Y), 10, (0, 255, 255), 2)
+                cv2.line(dst, (max_point_X, 0), (max_point_X, 1035), (0, 255, 255), 2)
+            if new_points_group2:
+                max_point_X, max_point_Y = min(new_points_group2, key=itemgetter(0))[0], min(new_points_group2, key=itemgetter(0))[1]
+                cv2.circle(dst, (max_point_X, max_point_Y), 10, (0, 255, 255), 2)
+                cv2.line(dst, (max_point_X, 0), (max_point_X, 1035), (255, 0, 0), 2)
+        else:
+            if new_points_group1:
+                max_point_X, max_point_Y = max(new_points_group1, key=itemgetter(0))[0], max(new_points_group1, key=itemgetter(0))[1]
+                cv2.circle(dst, (max_point_X, max_point_Y), 10, (0, 255, 255), 2)
+                cv2.line(dst, (max_point_X, 0), (max_point_X, 1035), (0, 255, 255), 2)
+            if new_points_group2:
+                max_point_X, max_point_Y = max(new_points_group2, key=itemgetter(0))[0], max(new_points_group2, key=itemgetter(0))[1]
+                cv2.circle(dst, (max_point_X, max_point_Y), 10, (0, 255, 255), 2)
+                cv2.line(dst, (max_point_X, 0), (max_point_X, 1035), (255, 0, 0), 2)
     cv2.line(dst, (new_ball_coords[0], 0), (new_ball_coords[0], 1035), (0, 0, 255), 2)
     cv2.imshow("Img", frame)
     cv2.imshow("Top View", dst)
