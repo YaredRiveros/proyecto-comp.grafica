@@ -18,8 +18,8 @@ def assign_custom_label(color, team1_bgr, team2_bgr):
     team1_distance = euclidean_distance(color, team1_bgr)
     team2_distance = euclidean_distance(color, team2_bgr)
 
-    print("team1_distance:", team1_distance)
-    print("team2_distance:", team2_distance)
+    # print("team1_distance:", team1_distance)
+    # print("team2_distance:", team2_distance)
 
     # Check if the color is too far from both team2 and team1
     if team1_distance > threshold_distance and team2_distance > threshold_distance:
