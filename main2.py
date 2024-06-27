@@ -197,6 +197,7 @@ numFrame = 0
 while True:
     numFrame += 1
     ret, frame = cap.read()
+    # print("frame:",frame)
     dst = cv2.imread("dst3.png")
     if not ret:
         break
@@ -226,7 +227,7 @@ while True:
                 newY = int((y2 - y)/5 + y)
                 newX2 = int(2*(x2 - x)/3 + x)
                 newY2 = int(2*(y2 - y)/5 + y)
-
+                
                 # Poner etiquetas a los objetos ("team1","team2" o "ball")
                 if class_id == 0:
                     if distRight > distLeft:
@@ -248,12 +249,12 @@ while True:
                     cv2.rectangle(frame, (newX, newY), (newX2, newY2), dominant_color, 2)
                     team = classify_bgr_color(dominant_color, team1_bgr, team2_bgr)
                     if team == "group1":
-                        cv2.putText(frame, "Team 1", (x, y-5), font, 1, team1_bgr, 3, cv2.LINE_AA)
+                        #cv2.putText(frame, "Team 1", (x, y-5), font, 1, team1_bgr, 3, cv2.LINE_AA)
                         team1_positions.append((x, y-5))
                         cv2.polylines(frame, [seg], True, team1_bgr, 3)
                         cv2.circle(frame, (minX, maxY), 5, team1_bgr, -1)
                     elif team == "group2":
-                        cv2.putText(frame, "Team 2", (x, y-5), font, 1, team2_bgr, 3, cv2.LINE_AA)
+                        #cv2.putText(frame, "Team 2", (x, y-5), font, 1, team2_bgr, 3, cv2.LINE_AA)
                         team2_positions.append((x, y-5))
                         cv2.polylines(frame, [seg], True, team2_bgr, 3)
                         cv2.circle(frame, (minX, maxY), 5, team2_bgr, -1)
@@ -262,7 +263,7 @@ while True:
                     dominant_color = get_average_color(roi)
                     cv2.rectangle(frame, (newX, newY), (newX2, newY2), dominant_color, 2)
                     team = "ball"
-                    cv2.putText(frame, "Ball", (x, y-5), font, 1, (0, 255, 255), 3, cv2.LINE_AA)
+                    #cv2.putText(frame, "Ball", (x, y-5), font, 1, (0, 255, 255), 3, cv2.LINE_AA)
                     ball_position = (x, y-5)
                     cv2.polylines(frame, [seg], True, (0, 255, 255), 3)
                     cv2.circle(frame, (minX, maxY), 5, (0, 255, 255), -1)
@@ -272,24 +273,28 @@ while True:
                 perspective_transform([x, y-5], team, og_perspective_coords, new_perspective_coords)
 
     # Detectar si el jugador está en offside usando coordenadas 2D
-    for player_position in new_points_group1:
-        offside, distance = is_offside(player_position, new_points_group1, new_points_group2, goal_direction)
-        if offside:
-            cv2.putText(frame, "Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-32), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
+    # for player_position in new_points_group1:
+    #     offside, distance = is_offside(player_position, new_points_group1, new_points_group2, goal_direction)
+    #     if offside:
+    #         cv2.putText(frame, "Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-32), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
-            cv2.putText(frame, f"{distance} m", (new_og_map[player_position][0], new_og_map[player_position][1]-64), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
+    #         cv2.putText(frame, f"{distance} m", (new_og_map[player_position][0], new_og_map[player_position][1]-64), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
 
-        else:
-            cv2.putText(frame, "Not Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-32), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        # else:
+        #     cv2.putText(frame, "Not Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-32), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
             
 
     # Trazar una recta amarilla al atacante más cercano al arco, otra recta azul al defensa más cercano a al arco y una recta roja a la pelota
+    atacante_x = 0
+    atacante_y = 0
     if new_points:
         if goal_direction == 'left':
             if new_points_group1:
                 max_point_X, max_point_Y = min(new_points_group1, key=itemgetter(0))[0], min(new_points_group1, key=itemgetter(0))[1]
+                atacante_x = max_point_X
+                atacante_y = max_point_Y
                 cv2.circle(dst, (max_point_X, max_point_Y), 10, (0, 255, 255), 2)
                 cv2.line(dst, (max_point_X, 0), (max_point_X, 1035), (0, 255, 255), 2)
             if new_points_group2:
@@ -301,14 +306,42 @@ while True:
                 max_point_X, max_point_Y = max(new_points_group1, key=itemgetter(0))[0], max(new_points_group1, key=itemgetter(0))[1]
                 cv2.circle(dst, (max_point_X, max_point_Y), 10, (0, 255, 255), 2)
                 cv2.line(dst, (max_point_X, 0), (max_point_X, 1035), (0, 255, 255), 2)
+                atacante_x = max_point_X
+                atacante_y = max_point_Y
             if new_points_group2:
                 max_point_X, max_point_Y = max(new_points_group2, key=itemgetter(0))[0], max(new_points_group2, key=itemgetter(0))[1]
                 cv2.circle(dst, (max_point_X, max_point_Y), 10, (0, 255, 255), 2)
                 cv2.line(dst, (max_point_X, 0), (max_point_X, 1035), (255, 0, 0), 2)
     cv2.line(dst, (new_ball_coords[0], 0), (new_ball_coords[0], 1035), (0, 0, 255), 2)
     # Dibujar linea de offside en el frame 228 (cuando el jugador está en offside)
-    # if numFrame >= 228:
-    cv2.line(frame, (0, 466), (1106, 98), (0, 0, 255), 2)
+
+    if numFrame >= 228 and numFrame <= 231:
+        for player_position in new_points_group1:
+            offside, distance = is_offside(player_position, new_points_group1, new_points_group2, goal_direction)
+            if offside:
+                #cv2.putText(frame, "Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-32), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
+                #cv2.putText(frame, f"{distance} m", (new_og_map[player_position][0], new_og_map[player_position][1]-64), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
+                # dibujar un rectángulo alrededor del jugador
+                # cv2.rectangle(dst, (max_point_X-10, max_point_Y-10), (max_point_X+10, max_point_Y+10), (0, 255, 255), 2)
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+                # Get coordinates and size of the square
+                x, y = new_og_map[(atacante_x, atacante_y)]
+                w, h = 100,100
+
+                # Apply the mask
+                frame[y:y+h, x:x+w] = frame[y:y+h, x:x+w]
+                frame[0:y, :] = gray[0:y, :]
+                frame[y+h:, :] = gray[y+h:, :]
+                frame[y:y+h, 0:x] = gray[y:y+h, 0:x]
+                frame[y:y+h, x+w:] = gray[y:y+h,x+w:]
+                cv2.putText(frame, "Offside", (new_og_map[player_position][0], new_og_map[player_position][1]-32), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
+                cv2.putText(frame, f"{distance} m", (new_og_map[player_position][0], new_og_map[player_position][1]-64), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
+
+        print("Dibujando linea de offside")
+        cv2.line(frame, (0, 466), (1106, 98), (0, 0, 255), 2)
+
     cv2.imshow("Img", frame)
     cv2.imshow("Top View", dst)
     t = 5
